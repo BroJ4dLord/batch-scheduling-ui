@@ -1,0 +1,91 @@
+import React, { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+
+const BatchSchedulingUI = () => {
+  const [batchData, setBatchData] = useState([]);
+  const [mockMode, setMockMode] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (mockMode) {
+        const mockBatch = {
+          product_type: ["Gasoline", "Diesel", "Jet Fuel", "Crude Oil"][Math.floor(Math.random() * 4)],
+          volume_bbl: (Math.random() * 1500 + 500),
+          priority: Math.floor(Math.random() * 4) + 1,
+          contamination_risk: Math.random() * 0.04 + 0.01,
+          timestamp: Date.now(),
+        };
+        setBatchData((prev) => [...prev.slice(-20), mockBatch]);
+      } else {
+        fetch("/api/batch_schedule")
+          .then((res) => res.json())
+          .then((data) => {
+            setBatchData((prev) => [...prev.slice(-20), data]);
+          })
+          .catch((err) => console.error("API fetch error:", err));
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [mockMode]);
+
+  const handleModeSwitch = () => {
+    setMockMode((prev) => {
+      const newMode = !prev;
+      toast.success(newMode ? "Switched to Mock Mode" : "Switched to Real API Mode");
+      return newMode;
+    });
+  };
+
+  return (
+    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="col-span-2 flex justify-end mb-4">
+        <Button onClick={handleModeSwitch}>
+          {mockMode ? "Switch to Real API" : "Switch to Mock Mode"}
+        </Button>
+      </div>
+      <Card className="rounded-2xl shadow-md">
+        <CardContent>
+          <h2 className="text-2xl font-bold mb-4">Real-time Batch Scheduling</h2>
+          <div className="space-y-2">
+            {batchData.slice().reverse().map((batch, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="p-2 rounded bg-gray-100"
+              >
+                <div><strong>Product:</strong> {batch.product_type}</div>
+                <div><strong>Volume:</strong> {batch.volume_bbl.toFixed(1)} bbl</div>
+                <div><strong>Priority:</strong> {batch.priority}</div>
+                <div><strong>Contamination Risk:</strong> {(batch.contamination_risk * 100).toFixed(2)}%</div>
+              </motion.div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl shadow-md">
+        <CardContent>
+          <h2 className="text-2xl font-bold mb-4">Batch Priority Over Time</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={batchData}>
+              <XAxis dataKey="timestamp" hide />
+              <YAxis domain={[0, 5]} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="priority" stroke="#8884d8" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default BatchSchedulingUI;
